@@ -5,6 +5,38 @@ __title__ = 'jscompiler'
 __version__ = '0.1-pre'
 __license__ = 'BSD'
 
+
+def process_args(argv=None):
+    """
+    Parse configuration arguments.
+    """
+    import sys
+    import argparse
+    DESCRIPTION = 'Minify JavaScript.'
+    parser = argparse.ArgumentParser(prog=__title__, description=DESCRIPTION)
+    parser.add_argument(
+        '-v', '--version', action='version', version='%%(prog)s %s' % __version__
+    )
+    parser.add_argument(
+        '-r', '--rename-locals', action='store_true', dest='rename',
+        help='Rename local variables to shorter names when possible.'
+    )
+    parser.add_argument(
+        '-o', '--output', type=argparse.FileType('wb'), dest='output',
+        default=sys.stdout, metavar='FILENAME',
+        help='The file to write the output to. Defaults to stdout.'
+    )
+    parser.add_argument(
+        'input', metavar='FILENAME', type=argparse.FileType('rb'), nargs=1,
+        help='The file to minify.'
+    )
+    if argv:
+        options = parser.parse_args(argv)
+    else:
+        options = parser.parse_args()
+    return options
+
+
 def write_ast(ast, outfile):
     """
     Write an abstract syntax tree to a file.
@@ -13,6 +45,7 @@ def write_ast(ast, outfile):
     from .code_generator import generate_code
     consumer = make_print_consumer(outfile)
     generate_code(ast, consumer)
+
 
 def parse_input(input):
     """
@@ -23,12 +56,14 @@ def parse_input(input):
     parser = make_file_parser(input)
     return parser.parse()
 
-def optimize_ast(ast):
+
+def rename_ast(ast):
     """
-    Optimize the AST, returning an AST object.
+    Rename locals in the AST, returning an AST object.
     """
     from .rename import rename_locals
     return rename_locals(ast)
+
 
 def write_ast(ast, outfile):
     """
@@ -39,14 +74,26 @@ def write_ast(ast, outfile):
     consumer = make_print_consumer(outfile)
     generate_code(ast, consumer)
 
-def main(argv):
+
+def main(argv=None):
+    """
+    Minify a file.
+    """
     import sys
-    with open(argv[1], 'rb') as infile:
-        try:
-            ast = parse_input(infile)
-        except:
-            return 1
-        ast = optimize_ast(ast)
-        write_ast(ast, sys.stdout)
+    from bigrig.parser import ParseException
+    try:
+        options = process_args(argv)
+    except Exception, e:
+        return 1
+    try:
+        ast = parse_input(options.input[0])
+        if options.rename:
+            ast = rename_ast(ast)
+        write_ast(ast, options.output)
+    except ParseException, e:
+        sys.stderr.write(str(e))
+        return 1
+    except Exception, e:
+        return 1
     return 0
     

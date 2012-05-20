@@ -3,4 +3,4 @@
 if __name__ == '__main__':
    import sys
    import jscompiler
-   jscompiler.main(sys.argv)
+   jscompiler.main(sys.argv[1:])
